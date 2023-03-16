@@ -1,0 +1,18 @@
+[Unit]
+Description=odoo{{odoo_version}}
+After=network.target
+
+[Service]
+Type=simple
+SyslogIdentifier=odoo{{odoo_version}}
+PermissionsStartOnly=true
+User=odoo{{odoo_version}}
+Group=odoo{{odoo_version}}
+WorkingDirectory={{env_path}}
+ExecStart=/opt/odoo{{odoo_version}}/venv/bin/python /opt/odoo{{odoo_version}}/odoo/odoo-bin -c /opt/odoo{{odoo_version}}/etc/odoo.conf
+StandardOutput=journal
+Restart=always
+RestartSec=90
+
+[Install]
+WantedBy=multi-user.target
