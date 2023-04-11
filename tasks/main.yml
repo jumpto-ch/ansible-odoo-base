@@ -23,11 +23,20 @@
     vars:
       admin_passwd: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile length=8 chars=digits') }}"
     template:
-      src: files/odoo.conf
+      src: odoo.conf.j2
       owner: "{{odoo_user}}"
       group: "{{odoo_user}}"
       dest: "{{env_path}}/etc/odoo.conf"
       force: false
+
+  - name: "apt installation"
+    apt:
+      update_cache: yes
+      name:
+        - "git"
+        - "virtualenv"
+      state: "present"
+    become: true
 
   - name: Clone odoo community repository
     git:
@@ -94,7 +103,7 @@
   - block:
     - name: Create odoo service
       template:
-        src: files/odoo.service
+        src: odoo.service.j2
         owner: "{{odoo_user}}"
         group: "{{odoo_user}}"
         dest: "/etc/systemd/system/{{odoo_user}}.service"
