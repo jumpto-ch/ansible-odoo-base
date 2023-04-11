@@ -4,7 +4,7 @@
   - name: create user
     ansible.builtin.user:
       name: "{{odoo_user}}"
-      create_home: True
+      create_home: true
       home: "{{env_path}}"
       shell: /bin/bash
 
@@ -31,10 +31,13 @@
 
   - name: "apt installation"
     apt:
-      update_cache: yes
+      update_cache: true
       name:
         - "git"
         - "virtualenv"
+        - libsasl2-dev 
+        - libldap2-dev 
+        - libssl-dev
       state: "present"
     become: true
 
@@ -43,18 +46,18 @@
       repo: https://github.com/odoo/odoo.git
       dest: "{{env_path}}/odoo"
       version: "{{odoo_version}}.0"
-      single_branch: "yes"
+      single_branch: "true"
       depth: 1
 
-  - name: Cree une liste des dépendances
+  - name: Create a list of dependencies
     shell:
       cmd: "/usr/bin/sed -n -e '/^Depends:/,/^Pre/ s/ python3-\\(.*\\),/python3-\\1/p' {{env_path}}/odoo/debian/control"
     register: list_dependance
 
-  - name: Installer les dépendances
+  - name: Install apt dependencies 
     apt:
       name: "{{ item }}"
-      update_cache: yes
+      update_cache: true
       state: present
     with_items: "{{ list_dependance['stdout_lines'] }}"
 
@@ -63,22 +66,32 @@
       git:
         repo: git@github.com:odoo/design-themes.git
         dest: "{{env_path}}/addons/design-themes"
-        clone: yes
-        update: yes
+        clone: true
+        update: true
         version: "{{odoo_version}}.0"
-        single_branch: "yes"
+        single_branch: "true"
         depth: 1
 
     - name: Clone odoo enterprise repository
       git:
         repo: git@github.com:odoo/enterprise.git
         dest: "{{env_path}}/addons/enterprise"
-        clone: yes
-        update: yes
+        clone: true
+        update: true
         version: "{{odoo_version}}.0"
-        single_branch: "yes"
+        single_branch: "true"
         depth: 1
     when: enterprise
+
+  - name: Install pip pre-dependencies
+    pip:
+      name:
+        - setuptools
+        - wheel
+      virtualenv: "{{env_path}}/venv"
+      virtualenv_python: "python3"
+    become_user: "{{odoo_user}}"
+    become: true
 
   - name: Install odoo python dependencies
     pip:
@@ -93,12 +106,13 @@
       git:
         repo: https://github.com/odoo-ide/odoo-stubs.git
         dest: "{{env_path}}/odoo-stubs"
-        clone: yes
-        update: yes
+        clone: true
+        update: true
         version: "{{odoo_version}}.0"
-        single_branch: "yes"
+        single_branch: "true"
         depth: 1
     when: development
+
 
   - block:
     - name: Create odoo service
@@ -109,11 +123,10 @@
         dest: "/etc/systemd/system/{{odoo_user}}.service"
         force: false
 
-    - name: Active Odoo service
+    - name: Enable Odoo service
       service:
         name: "{{odoo_user}}"
         state: started
-        enabled: yes
+        enabled: true
     when: not development
-
-  become: yes
+  become: true
