@@ -2,4 +2,4 @@ odoo_version: "16"
 odoo_user: "odoo{{odoo_version}}"
 env_path: "/opt/{{odoo_user}}"
 enterprise: false
-developpement: false
+development: false
