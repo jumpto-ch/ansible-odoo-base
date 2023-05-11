@@ -3,3 +3,4 @@ odoo_user: "odoo{{odoo_version}}"
 env_path: "/opt/{{odoo_user}}"
 enterprise: false
 development: false
+odoo_user_postgres_password: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile length=8 chars=digits') }}"

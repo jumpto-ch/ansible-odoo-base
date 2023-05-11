@@ -1,9 +1,8 @@
 [options]
 # Database
 db_host = False
-db_user = "{{ postgres_user }}"
-db_password = "{{ postgres_password }}"
-# db_sslmode = prefer
+db_user = "{{ odoo_user }}"
+db_password = "{{ odoo_user_postgres_password }}"
 # dbfilter = ^%d$
 # list_db = False
 
@@ -11,7 +10,7 @@ db_password = "{{ postgres_password }}"
 log_level = info
 
 ; Resources limitation
-workers = 5
+workers = 2
 ;limit_memory_soft = 364748365
 ;limit_memory_hard = 464748365
 
