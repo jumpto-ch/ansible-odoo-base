@@ -38,6 +38,9 @@
           - libsasl2-dev
           - libldap2-dev
           - libssl-dev
+          - acl
+          - postgresql-client
+          - libpq-dev
         state: present
       become: true
 
