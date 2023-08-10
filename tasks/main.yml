@@ -1,9 +1,23 @@
 ---
 # task file for 'deploy from scratch' of odoo
+
+- name: Check if python3.8 is installed
+  ansible.builtin.command: python3.8 --version
+  register: python_version_output
+  ignore_errors: true
+
+- name: debug
+  debug:
+    msg: "{{python_version_output}}"
+
+- name: Install python3.8
+  import_tasks: 00_odoo_python38.yml
+  when: inventory_hostname in groups['odoo'] and not python_version_output.stdout
+
 - name: Execute odoo_postgres.yml
   import_tasks: 01_odoo_postgres.yml
   when: inventory_hostname in groups['postgres']
-
-- name: Execute odoo_postgres.yml
+#
+- name: Execute odoo_install.yml
   import_tasks: 02_odoo_install.yml
   when: inventory_hostname in groups['odoo']

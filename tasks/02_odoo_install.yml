@@ -1,134 +1,141 @@
 ---
 # task file for 'deploy from scratch' of odoo
+- name: Create user
+  ansible.builtin.user:
+    name: "{{odoo_user}}"
+    create_home: true
+    home: "{{env_path}}"
+    shell: /bin/bash
+  become: true
+  when: not development # production
+
+- name: Create etc directory
+  ansible.builtin.file:
+    path: "{{item}}"
+    state: directory
+    owner: "{{odoo_user}}"
+    group: "{{odoo_user}}"
+  loop:
+    - "{{env_path}}/etc"
+    - "{{env_path}}/data"
+    - "{{env_path}}/addons"
+
+- name: Copy odoo.conf
+  vars:
+    admin_passwd: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile length=8 chars=digits') }}"
+  ansible.builtin.template:
+    src: odoo.conf.j2
+    owner: "{{odoo_user}}"
+    group: "{{odoo_user}}"
+    dest: "{{env_path}}/etc/odoo.conf"
+    force: false
+
+- name: Apt installation
+  ansible.builtin.apt:
+    update_cache: true
+    name:
+      - git
+      - virtualenv
+      - libsasl2-dev
+      - libldap2-dev
+      - libssl-dev
+      - acl
+      - postgresql-client
+      - libpq-dev
+      - libxml2-dev
+      - libxslt-dev
+    state: present
+  become: true
+
+- name: Clone odoo community repository
+  ansible.builtin.git:
+    repo: https://github.com/odoo/odoo.git
+    dest: "{{env_path}}/odoo"
+    version: "{{odoo_version}}.0"
+    single_branch: "true"
+    depth: 1
+  become: True
+  become_user: "{{ odoo_user }}"
+
+- name: Create a list of dependencies
+  ansible.builtin.shell:
+    cmd: /usr/bin/sed -n -e '/^Depends:/,/^Pre/ s/ python3-\(.*\),/python3-\1/p' {{env_path}}/odoo/debian/control
+  register: list_dependance
+
+- name: Install apt dependencies
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+    state: present
+  with_items: "{{ list_dependance['stdout_lines'] }}"
+  ignore_errors: true
+
 - block:
-    - name: Create user
-      ansible.builtin.user:
-        name: "{{odoo_user}}"
-        create_home: true
-        home: "{{env_path}}"
-        shell: /bin/bash
-
-    - name: Create etc directory
-      ansible.builtin.file:
-        path: "{{item}}"
-        state: directory
-        owner: "{{odoo_user}}"
-        group: "{{odoo_user}}"
-      loop:
-        - "{{env_path}}/etc"
-        - "{{env_path}}/data"
-        - "{{env_path}}/addons"
-
-    - name: Copy odoo.conf
-      vars:
-        admin_passwd: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile length=8 chars=digits') }}"
-      ansible.builtin.template:
-        src: odoo.conf.j2
-        owner: "{{odoo_user}}"
-        group: "{{odoo_user}}"
-        dest: "{{env_path}}/etc/odoo.conf"
-        force: false
-
-    - name: Apt installation
-      ansible.builtin.apt:
-        update_cache: true
-        name:
-          - git
-          - virtualenv
-          - libsasl2-dev
-          - libldap2-dev
-          - libssl-dev
-          - acl
-          - postgresql-client
-          - libpq-dev
-        state: present
-      become: true
-
-    - name: Clone odoo community repository
+    - name: Clone odoo template repository
       ansible.builtin.git:
-        repo: https://github.com/odoo/odoo.git
-        dest: "{{env_path}}/odoo"
+        repo: git@github.com:odoo/design-themes.git
+        dest: "{{env_path}}/addons/design-themes"
+        clone: true
+        update: true
         version: "{{odoo_version}}.0"
         single_branch: "true"
         depth: 1
 
-    - name: Create a list of dependencies
-      ansible.builtin.shell:
-        cmd: /usr/bin/sed -n -e '/^Depends:/,/^Pre/ s/ python3-\(.*\),/python3-\1/p' {{env_path}}/odoo/debian/control
-      register: list_dependance
+    - name: Clone odoo enterprise repository
+      ansible.builtin.git:
+        repo: git@github.com:odoo/enterprise.git
+        dest: "{{env_path}}/addons/enterprise"
+        clone: true
+        update: true
+        version: "{{odoo_version}}.0"
+        single_branch: "true"
+        depth: 1
+  when: enterprise
 
-    - name: Install apt dependencies
-      ansible.builtin.apt:
-        name: "{{ item }}"
-        update_cache: true
-        state: present
-      with_items: "{{ list_dependance['stdout_lines'] }}"
+- name: Install pip pre-dependencies
+  ansible.builtin.pip:
+    name:
+      - setuptools
+      - wheel
+    state: latest
+    virtualenv: "{{env_path}}/venv"
+    virtualenv_python: python3.8
+  become: True
+  become_user: "{{ odoo_user }}"
 
-    - block:
-        - name: Clone odoo template repository
-          ansible.builtin.git:
-            repo: git@github.com:odoo/design-themes.git
-            dest: "{{env_path}}/addons/design-themes"
-            clone: true
-            update: true
-            version: "{{odoo_version}}.0"
-            single_branch: "true"
-            depth: 1
+- name: Install odoo python dependencies
+  ansible.builtin.pip:
+    requirements: "{{env_path}}/odoo/requirements.txt"
+    virtualenv: "{{env_path}}/venv"
+    virtualenv_python: python3.8
+  become: True
+  become_user: "{{ odoo_user }}"
 
-        - name: Clone odoo enterprise repository
-          ansible.builtin.git:
-            repo: git@github.com:odoo/enterprise.git
-            dest: "{{env_path}}/addons/enterprise"
-            clone: true
-            update: true
-            version: "{{odoo_version}}.0"
-            single_branch: "true"
-            depth: 1
-      when: enterprise
+- block:
+    - name: Clone odoo stub repository for development purpose
+      ansible.builtin.git:
+        repo: https://github.com/odoo-ide/odoo-stubs.git
+        dest: "{{env_path}}/odoo-stubs"
+        clone: true
+        update: true
+        version: "{{odoo_version}}.0"
+        single_branch: "true"
+        depth: 1
+  when: development
 
-    - name: Install pip pre-dependencies
-      ansible.builtin.pip:
-        name:
-          - setuptools
-          - wheel
-        virtualenv: "{{env_path}}/venv"
-        virtualenv_python: python3
-      become_user: "{{odoo_user}}"
-      become: true
+- block:
+    - name: Create odoo service
+      ansible.builtin.template:
+        src: odoo.service.j2
+        owner: "{{odoo_user}}"
+        group: "{{odoo_user}}"
+        dest: /etc/systemd/system/{{odoo_user}}.service
+        force: false
 
-    - name: Install odoo python dependencies
-      ansible.builtin.pip:
-        requirements: "{{env_path}}/odoo/requirements.txt"
-        virtualenv: "{{env_path}}/venv"
-        virtualenv_python: python3
-      become_user: "{{odoo_user}}"
-      become: true
-
-    - block:
-        - name: Clone odoo stub repository for development purpose
-          ansible.builtin.git:
-            repo: https://github.com/odoo-ide/odoo-stubs.git
-            dest: "{{env_path}}/odoo-stubs"
-            clone: true
-            update: true
-            version: "{{odoo_version}}.0"
-            single_branch: "true"
-            depth: 1
-      when: development
-
-    - block:
-        - name: Create odoo service
-          ansible.builtin.template:
-            src: odoo.service.j2
-            owner: "{{odoo_user}}"
-            group: "{{odoo_user}}"
-            dest: /etc/systemd/system/{{odoo_user}}.service
-            force: false
-
-        - name: Enable Odoo service
-          ansible.builtin.service:
-            name: "{{odoo_user}}"
-            state: started
-            enabled: true
-      when: not development
+    - name: Enable Odoo service
+      ansible.builtin.service:
+        name: "{{odoo_user}}"
+        state: started
+        enabled: true
   become: true
+  when: not development

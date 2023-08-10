@@ -1,0 +1,38 @@
+---
+- name: Install necessary package
+  ansible.builtin.package:
+    update_cache: true
+    pkg:
+      - build-essential
+      - zlib1g-dev
+      - libncurses5-dev
+      - libgdbm-dev
+      - libnss3-dev
+      - libssl-dev
+      - libsqlite3-dev
+      - libreadline-dev
+      - libffi-dev
+      - curl
+      - libbz2-dev
+    state: present
+
+- name: Download python3.8 source
+  ansible.builtin.get_url:
+    url: https://www.python.org/ftp/python/3.8.17/Python-3.8.17.tar.xz
+    dest: /tmp/Python-3.8.17.tar.xz
+
+- name: Extract file
+  ansible.builtin.unarchive:
+    remote_src: yes
+    src: /tmp/Python-3.8.17.tar.xz
+    dest: /tmp
+
+- name: Compile and install
+  ansible.builtin.command:
+    cmd: "{{ item }}"
+  args:
+    chdir: /tmp/Python-3.8.17
+  with_items:
+    - "./configure --enable-optimizations"
+    - "make -j 4"
+    - "make altinstall"

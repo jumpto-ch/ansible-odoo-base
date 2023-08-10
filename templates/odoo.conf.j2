@@ -1,8 +1,8 @@
 [options]
 # Database
-db_host = False
-db_user = "{{ odoo_user }}"
-db_password = "{{ odoo_user_postgres_password }}"
+db_host = {{ hostvars[postgres_hostname].ansible_default_ipv4.address if postgres_hostname else 'false' }}
+db_user = {{ odoo_user }}
+db_password = {{ odoo_user_postgres_password }}
 # dbfilter = ^%d$
 # list_db = False
 
@@ -17,10 +17,10 @@ workers = 2
 ; Instance parameter
 http_port = {{odoo_version}}69
 longpolling_port = {{odoo_version}}72
-data_dir = /opt/odoo{{odoo_version}}/data
+data_dir = {{env_path}}/data
 without_demo = all
 admin_passwd = {{admin_passwd}}
 proxy_mode = True
 
-addons_path = /opt/odoo{{odoo_version}}/odoo/addons,
-                /opt/odoo{{odoo_version}}/odoo/odoo/addons,
+addons_path = {{env_path}}/odoo/addons,
+                {{env_path}}/odoo/odoo/addons,
