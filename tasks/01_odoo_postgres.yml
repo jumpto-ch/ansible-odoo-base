@@ -18,10 +18,21 @@
         users: "{{odoo_user}}"
         databases: all
         method: md5
-        source: "{{ hostvars[odoo_hostname].ansible_default_ipv4.address }}"
+        source: "{% if development %}{% else %}{{ hostvars[odoo_hostname].ansible_default_ipv4.address }}{% endif %}"
         create: true
       notify: restart postgres
       when: not development
+
+    - name: Grant user on the DB
+      community.postgresql.postgresql_pg_hba:
+        dest: /etc/postgresql/{{postgresql_version.stdout}}/main/pg_hba.conf
+        contype: local
+        users: "{{odoo_user}}"
+        databases: all
+        method: md5
+        create: true
+      notify: restart postgres
+      when: development
 
     - name: Configure postgresql.conf Set listen_addresses.
       lineinfile: dest=/etc/postgresql/{{ postgresql_version.stdout }}/main/postgresql.conf

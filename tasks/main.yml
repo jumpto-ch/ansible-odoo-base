@@ -8,14 +8,12 @@
 
 - name: Install python3.8
   import_tasks: 00_odoo_python38.yml
-  when: inventory_hostname in groups['odoo'] and not python_version_output.stdout and odoo_version <= 14
+  when: not python_version_output.stdout and odoo_version | int <= 14
 
 # Create postgres user Odoo
 - name: Execute odoo_postgres.yml
   import_tasks: 01_odoo_postgres.yml
-  when: inventory_hostname in groups['postgres']
 
 # Install Odoo
-- name: Execute odoo_install.yml
-  import_tasks: 02_odoo_install.yml
-  when: inventory_hostname in groups['odoo']
+#- name: Execute odoo_install.yml
+#  import_tasks: 02_odoo_install.yml

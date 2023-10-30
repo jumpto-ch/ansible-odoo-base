@@ -1,8 +1,9 @@
 odoo_version: "16"
 odoo_user: "odoo{{odoo_version}}"
+linux_user: "{% if development %}false{% else %}{{ odoo_user }}{% endif %}"
 postgres_address: false
 postgres_hostname: false
 development: false
 enterprise: false
-env_path: "{% if development %}/home/{{ odoo_user }}/development/odoo{{ odoo_version }}{% else %}/opt/{{ odoo_user }}{% endif %}"
+env_path: "{% if development %}/home/{{ linux_user }}/development/odoo{{ odoo_version }}{% else %}/opt/{{ linux_user }}{% endif %}"
 odoo_user_postgres_password: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile length=8 chars=digits') }}"
