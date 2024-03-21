@@ -1,0 +1,20 @@
+---
+- name: Set vars odoo_user
+  ansible.builtin.set_fact:
+    odoo_user: "odoo{{odoo.version}}"
+    user_postgres: "odoo{{odoo.version}}"
+    password: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile_postgres length=12 chars=ascii_letters,digits,hexdigits,punctuation') }}"
+
+- name: Linux is odoo_user in production or when linux_user is not defined
+  ansible.builtin.set_fact:
+    linux_user: "{{odoo_user}}"
+  when: not odoo.development or linux_user is not defined
+
+- name: Set vars
+  ansible.builtin.set_fact:
+    odoo_environment:
+      - name: production
+      - name: stage
+      - name: manager
+
+    env_path: "{% if odoo.development %}/home/{{ linux_user }}/Development/odoo/odoo{{ odoo.version }}{% else %}/opt/{{ linux_user }}{% endif %}"

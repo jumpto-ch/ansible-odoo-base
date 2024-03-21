@@ -1,0 +1,24 @@
+---
+- name: Configure user postgress
+  block:
+    - name: Include set_fact by odoo instance
+      include_tasks: 0_set_fact_by_odoo_instance.yml
+
+    - name: Register postgresql_version
+      ansible.builtin.shell: pg_config --version | awk -F'[. ]' '{print $2}'
+      register: postgresql_version
+      when: not odoo.development
+
+    - name: Include tasks for each user
+      include_tasks: 01_2_postgres_user.yml
+      loop: "{{ odoo_environment }}"
+      loop_control:
+        loop_var: odoo_instance
+
+    - name: Configure postgresql.conf Set listen_addresses.
+      lineinfile: dest=/etc/postgresql/{{ postgresql_version.stdout }}/main/postgresql.conf
+        regexp="listen_addresses =" line="listen_addresses = '*'" state=present
+      notify: (Handler) Restart postgres
+      when: not odoo.development
+  become_user: postgres
+  become: yes

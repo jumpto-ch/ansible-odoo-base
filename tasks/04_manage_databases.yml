@@ -1,0 +1,36 @@
+---
+- name: Check list of databases
+  community.general.postgresql_info:
+    filter: databases
+    db: postgres
+    login_host: "{{ hostvars[postgres_hostname].ansible_default_ipv4.address if postgres_hostname else '' }}"
+    login_user: "{{ odoo_user }}"
+    login_password: "{{ postgres_user_password }}"
+  register: db_data
+
+- name: Display the name of databases
+  ansible.builtin.debug:
+   msg: "{{ item }}"
+  with_items: "{{ db_data.databases.keys() | list }}"
+
+- name: Stop odoo
+  service:
+    name: "odoo{{odoo_version}}"
+    state: stopped
+  become: yes
+
+# TODO: create a variable db_name_prefix = "v{{ odoo_version }}{% if enterprise %}e{% else %}c{% endif %}_"
+#- name: create db_name_prefix
+#  set_fact:
+#    db_name_prefix: "v{{ odoo_version }}{% if enterprise %}e{% else %}c{% endif %}_"
+#  when: db_name_prefix is not defined
+
+- name: Create new database
+  ansible.builtin.command: "{{ env_path }}/venv/bin/python {{ env_path }}/odoo/odoo-bin -c {{ env_path }}/etc/odoo.conf -d {{ db_name }} --init base,l10n_ch --without-demo all --load-language fr_CH --stop-after-init"
+  vars:
+    db_name: "v{{ odoo_version }}{% if enterprise %}e{% else %}c{% endif %}_{{ item.key }}"
+  when: 'db_name not in db_data.databases.keys() | list'
+  with_dict: "{{ nginx_revproxy_sites }}"
+  notify: "(Handler) Restart odoo"
+  become: yes
+  become_user: "{{ linux_user }}"

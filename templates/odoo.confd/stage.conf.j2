@@ -1,0 +1,14 @@
+{% extends "odoo.conf.j2" %}
+{%  block database %}
+db_host = {{ hostvars[postgres_hostname].ansible_default_ipv4.address if postgres_hostname else 'false' }}
+db_user = {{ user_postgres }}
+db_password = {{ password }}
+list_db = False
+dbfilter = ^v{{ odoo.version }}{% if odoo.enterprise %}e{% else %}c{% endif %}_%d
+{% endblock %}
+
+{% block port %}
+http_port = {{odoo.version}}70
+gevent_port = {{odoo.version}}71
+{% endblock %}
+

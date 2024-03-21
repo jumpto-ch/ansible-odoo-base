@@ -1,2 +1,17 @@
 ---
 # handlers file for odoo
+- name: (Handler) Restart postgres
+  service:
+    name: nginx
+    state: restarted
+
+- name: (Handler) Reload postgres
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+
+- name: (Handler) Restart odoo
+  ansible.builtin.service:
+    name: "odoo{{odoo_version}}"
+    state: restarted
+  become: yes

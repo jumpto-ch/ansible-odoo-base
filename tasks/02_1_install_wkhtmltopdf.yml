@@ -1,0 +1,41 @@
+---
+- name: Install needed package xfonts-75dpi
+  apt:
+    name: xfonts-75dpi
+    state: present
+  become: yes
+
+- name: Get the wkhtmltopdf URL's depends of linux distribution and odoo version
+  set_fact:
+    wkhtmltopdf_url: >
+      {% if ansible_distribution == "Ubuntu" %}
+        {% if odoo.version is version('15.0', '>') %}
+          https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_amd64.deb          
+        {% else %}
+          https://github.com/wkhtmltopdf/packaging/files/8632951/wkhtmltox_0.12.5-1.jammy_amd64.zip
+        {% endif %}
+      {% else %}
+        https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb
+      {% endif %}
+
+- name: Download wkhtmltopdf .deb file
+  get_url:
+    url: "{{wkhtmltopdf_url}}"
+    dest: /tmp/wkhtmltox.deb
+
+- name: Unzip wkhtmltopdf .zip file
+  ansible.builtin.unarchive:
+    src: /tmp/wkhtmltox
+    dest: /tmp/wkhtmltox.deb
+  when: wkhtmltopdf_url.endswith('.zip')
+
+- name: Install wkhtmltox
+  apt:
+    deb: /tmp/wkhtmltox.deb
+  become: yes
+
+- name: Delete wkhtmltopdf .deb file
+  ansible.builtin.file:
+    path: /tmp/wkhtmltox.deb
+    state: absent
+

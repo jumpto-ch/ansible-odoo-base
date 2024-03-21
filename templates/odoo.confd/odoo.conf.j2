@@ -1,0 +1,53 @@
+#############################
+#
+#  {{ ansible_managed }}
+#  commit: {{ lookup('pipe', 'git rev-parse --short HEAD') }}
+#
+#############################
+
+[options]
+; Database
+{%  block database %}
+db_host = {{ hostvars[postgres_hostname].ansible_default_ipv4.address if postgres_hostname else 'false' }}
+db_user = {{ user_postgres }}
+db_password = {{ password }}
+list_db = False
+dbfilter = ^v{{ odoo.version }}{% if odoo.enterprise %}e{% else %}c{% endif %}_%d_production
+{% endblock %}
+
+; Log parameter
+log_level = info
+
+{% if odoo.development %}
+{% else %}
+; Resources limitation
+workers = 2
+limit_time_cpu = 180
+{% endif %}
+
+; Instance parameter
+{% block port %}
+http_port = {{odoo.version}}69
+
+{% if odoo.version <= '15.0' %}
+longpolling_port = {{odoo.version}}72
+{% else %}
+gevent_port = {{odoo.version}}72
+{% endif %}
+{% endblock %}
+
+data_dir = {{env_path}}/data
+without_demo = {%  if odoo.development %}False{% else %}All{% endif %}
+
+admin_passwd = {{admin_passwd}}
+proxy_mode = {%  if odoo.development %}False{% else %}True{% endif %}
+
+addons_path = {{env_path}}/odoo/addons,
+              {{env_path}}/odoo/odoo/addons,
+              {{env_path}}/addons/design-themes,
+{% for repo_path in git_repo_list %}
+              {{ repo_path }},
+{% endfor %}
+{% if odoo.enterprise %}
+              {{env_path}}/addons/enterprise,
+{% endif %}

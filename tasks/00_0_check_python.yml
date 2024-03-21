@@ -1,0 +1,20 @@
+---
+- name: Python version to install
+  set_fact:
+    python_version: "{{ odoo_python_mapping[odoo.version] }}"
+
+- name: Check if python{{python_version}} is installed
+  ansible.builtin.shell: "ls /usr/bin/python* /usr/local/bin/python* | grep -q python{{ python_version }}"
+  register: python_is_installed
+  changed_when: False
+  failed_when: False
+  become: True
+
+- name: Message if python{{python_version}} is installed
+  ansible.builtin.debug:
+    msg: "Python{{python_version}} is already installed"
+  when: python_is_installed.rc == 0
+
+- name: Install python{{python_version}}
+  include_tasks: 00_1_install_python.yml
+  when: not python_is_installed.rc == 0

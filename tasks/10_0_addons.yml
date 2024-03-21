@@ -1,0 +1,120 @@
+---
+## delete repos before cloning
+#- name: Delete odoo addons directory
+#  ansible.builtin.file:
+#    path: "{{env_path}}/{{ item.name }}"
+#    state: absent
+#  loop: "{{ odoo.addons_repo }}"
+#  when: odoo.delete_addons
+
+# clone github repository for addons-jumpto git@github.com:CompassionCH/addons-jumpto.git
+- name: Clone repository with submodules
+  ansible.builtin.git:
+    repo: "{{ item.repo }}"
+    dest: "{{env_path}}/{{ item.name }}"
+    clone: true
+    update: true
+    version: "{{odoo.version}}.0"
+    single_branch: "true"
+    depth: 1
+    recursive: "true"
+  loop: "{{ odoo.addons_repo }}"
+  ignore_errors: yes
+
+- name: Change group owner of the cloned directory
+  ansible.builtin.file:
+    path: "{{env_path}}/{{ item.name }}"
+    group: "{{ linux_user }}"
+    recurse: yes
+  loop: "{{ odoo.addons_repo }}"
+  become: true
+
+- name: Find Git repositories
+  find:
+    paths: "{{env_path}}/{{ item.name }}"
+    file_type: directory
+  register: git_repos
+  become: true
+  loop: "{{ odoo.addons_repo }}"
+
+- name: Filter Git repositories
+  set_fact:
+    git_repo_list: "{{ git_repos.results | map(attribute='files') | flatten | map(attribute='path') | list if git_repos.results is defined else [] }}"
+
+- name: install linux package
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ odoo.apt_odoo_dependency }}"
+  become: true
+  when: odoo.apt_odoo_dependency is defined
+
+- name: Check if each directory is a Git repository
+  stat:
+    path: "{{ item }}/.git"
+  loop: "{{ git_repo_list }}"
+  register: git_repo_stats
+  ignore_errors: yes
+  tags: pip
+
+# Recursively install pip dependencies from requirements.txt
+- name: Check if requirements.txt exists in each git repository
+  stat:
+    path: "{{ item }}/requirements.txt"
+  loop: "{{ git_repo_list }}"
+  become: true
+  register: requirement_file_stats
+  tags: pip
+
+- name: Loop on each git repository and install pip dependencies if requirements.txt exists
+  ansible.builtin.pip:
+    requirements: "{{ item.stat.path }}"
+    virtualenv: "{{env_path}}/venv"
+    state: present
+  loop: "{{ requirement_file_stats.results }}"
+  become: yes
+  become_user: "{{ linux_user }}"
+  when: item.stat.exists
+
+- name: Copy odoo.conf for production instance
+  vars:
+    admin_passwd: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile{{ odoo_instance.name }} length=12 chars=ascii_letters,digits,hexdigits,punctuation') }}"
+  ansible.builtin.template:
+    src: "odoo.confd/{{ odoo_instance.name }}.conf.j2"
+    owner: "{{ linux_user }}"
+    dest: "{{ env_path }}/etc/{{ odoo_instance.name }}.conf"
+    mode: u=rwx,g=rwx
+    force: yes
+  become: yes
+  loop_control:
+    loop_var: odoo_instance
+  loop: "{{ odoo_environment }}"
+
+
+- block:
+    - name: Create odoo service production
+      ansible.builtin.template:
+        src: odoo.service.j2
+        owner: "{{linux_user}}"
+        dest: /etc/systemd/system/odoo{{odoo.version}}-{{odoo_instance.name}}.service
+        force: true
+      loop_control:
+        loop_var: odoo_instance
+      loop: "{{ odoo_environment }}"
+
+    - name: Enable Odoo service
+      ansible.builtin.service:
+        name: "odoo{{odoo.version}}-{{odoo_instance.name}}"
+        state: started
+        # enable if name contains prod or stage
+        enabled: "{% if odoo_instance.name.endswith('prod') or odoo_instance.name.endswith('stage') %}true{% else %}false{% endif %}"
+
+      loop_control:
+        loop_var: odoo_instance
+      loop: "{{ odoo_environment }}"
+
+  become: yes
+  when: not odoo.development
+
+
+

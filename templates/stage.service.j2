@@ -1,5 +1,5 @@
 [Unit]
-Description=odoo{{odoo.version}}
+Description=odoo{{odoo.version}}_stage
 After=network.target
 
 [Service]
@@ -9,7 +9,7 @@ PermissionsStartOnly=true
 User=odoo{{odoo.version}}
 Group=odoo{{odoo.version}}
 WorkingDirectory={{env_path}}
-ExecStart=/opt/odoo{{odoo.version}}/venv/bin/python /opt/odoo{{odoo.version}}/odoo/odoo-bin -c /opt/odoo{{odoo.version}}/etc/{{ odoo_instance.name }}.conf
+ExecStart=/opt/odoo{{odoo.version}}/venv/bin/python /opt/odoo{{odoo.version}}/odoo/odoo-bin -c /opt/odoo{{odoo.version}}/etc/stage.conf
 StandardOutput=journal
 Restart=always
 RestartSec=90

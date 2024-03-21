@@ -1,0 +1,52 @@
+---
+- name: Get Python versions data
+  ansible.builtin.uri:
+    url: https://endoflife.date/api/python.json
+    return_content: yes
+  register: python_versions_data
+
+- name: Find latest Python version for Odoo version
+  set_fact:
+    latest_python_version: "{{ (python_versions_data.json | selectattr('cycle', 'equalto', python_version) | list | first).latest }}"
+
+- name: Install necessary package
+  ansible.builtin.package:
+    update_cache: true
+    pkg:
+      - build-essential
+      - zlib1g-dev
+      - libncurses5-dev
+      - libgdbm-dev
+      - libnss3-dev
+      - libssl-dev
+      - libsqlite3-dev
+      - libreadline-dev
+      - libffi-dev
+      - curl
+      - libbz2-dev
+    state: present
+  become: true
+
+- name: Download python {{latest_python_version}} source
+  ansible.builtin.get_url:
+    url: https://www.python.org/ftp/python/{{latest_python_version}}/Python-{{latest_python_version}}.tar.xz
+    dest: /tmp/Python-{{latest_python_version}}.tar.xz
+
+- name: Extract file
+  ansible.builtin.unarchive:
+    remote_src: yes
+    src: /tmp/Python-{{latest_python_version}}.tar.xz
+    dest: /tmp
+
+- name: Compile and install python {{latest_python_version}}
+  ansible.builtin.command:
+    cmd: "{{ item }}"
+  args:
+    chdir: /tmp/Python-{{latest_python_version}}
+  with_items:
+    - "./configure --enable-optimizations"
+    - "make -j 4"
+    - "make altinstall"
+  become: true
+
+

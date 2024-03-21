@@ -1,0 +1,8 @@
+{% extends "odoo.conf.j2" %}
+{%  block database %}
+db_host = False
+db_user = {{ linux_user }}
+db_password = {{ postgres_user_password }}
+list_db = True
+{% endblock %}
+
