@@ -49,6 +49,18 @@
     state: present
   become: true
 
+- name: Add public key gihub.com to known_hosts
+  ansible.builtin.known_hosts:
+    name: github.com
+    state: present
+    key: "{{ public_key_github }}"
+
+- name: Avoid detected dubious ownership
+  community.general.git_config:
+    name: safe.directory
+    scope: global
+    value: "{{env_path}}/odoo"
+
 - name: Clone odoo community repository
   ansible.builtin.git:
     repo: https://github.com/odoo/odoo.git
@@ -91,14 +103,14 @@
   ignore_errors: true
   become: yes
 
-- name: Add key of github.com to known_hosts
-  ansible.builtin.known_hosts:
-    name: github.com
-    key: "{{ lookup('pipe', 'ssh-keyscan github.com') }}"
-    state: present
-  ignore_errors: true
-  become: true
-  become_user: "{{ linux_user }}"
+#- name: Add key of github.com to known_hosts
+#  ansible.builtin.known_hosts:
+#    name: github.com
+#    key: "{{ lookup('pipe', 'ssh-keyscan github.com') }}"
+#    state: present
+#  ignore_errors: true
+#  become: true
+#  become_user: "{{ linux_user }}"
 
 - name: Clone odoo enterprise repository
   ansible.builtin.git:
@@ -129,6 +141,16 @@
     state: latest
     virtualenv: "{{env_path}}/venv"
     virtualenv_python: python{{odoo_python_mapping[odoo.version]}}
+  become: True
+  become_user: "{{ linux_user }}"
+
+- name: Install instance pip pre-dependencies
+  ansible.builtin.pip:
+    name:
+      - "{{ item }}"
+    virtualenv: "{{env_path}}/venv"
+    virtualenv_python: python{{odoo_python_mapping[odoo.version]}}
+  loop: "{{ odoo.pip_pre_dependencies }}"
   become: True
   become_user: "{{ linux_user }}"
 
