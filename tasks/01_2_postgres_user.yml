@@ -1,9 +1,13 @@
 ---
 - name: Create postgres user with specific right
   community.postgresql.postgresql_user:
-    name: "{{ user_postgres }}"
+    name: "{% if odoo.development %}{{ linux_user }}{% else %}{{ user_postgres }}{% endif %}"
     password: "{{ password }}"
     role_attr_flags: CREATEDB,NOCREATEROLE,NOSUPERUSER
+
+- name: Register postgresql_version
+  ansible.builtin.shell: pg_config --version | awk -F'[. ]' '{print $2}'
+  register: postgresql_version
 
 - name: Grant user on the DB
   community.postgresql.postgresql_pg_hba:
@@ -12,7 +16,18 @@
     users: "{{user_postgres}}"
     databases: all
     method: md5
-    source: "{% if odoo.development %}{% else %}{{ hostvars[odoo_hostname].ansible_default_ipv4.address }}{% endif %}"
+    source: "{% if odoo.development %}localhost{% else %}{{ hostvars[odoo_hostname].ansible_default_ipv4.address }}{% endif %}"
     create: true
   notify: (Handler) Restart postgres
   when: not odoo.development
+
+- name: Grant user on the DB development environment
+  community.postgresql.postgresql_pg_hba:
+    dest: /etc/postgresql/{{postgresql_version.stdout}}/main/pg_hba.conf
+    contype: host
+    users: "{{linux_user}}"
+    databases: all
+    method: md5
+    create: true
+  notify: (Handler) Restart postgres
+  when: odoo.development
