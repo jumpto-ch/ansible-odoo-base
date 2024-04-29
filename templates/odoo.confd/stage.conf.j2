@@ -9,7 +9,6 @@ dbfilter = ^v{{ odoo.version }}{% if odoo.enterprise %}e{% else %}c{% endif %}_%
 
 {% block port %}
 http_port = {{odoo.version}}70
-longpolling_port = {{odoo.version}}71
 gevent_port = {{odoo.version}}71
 {% endblock %}
 

@@ -1,12 +1,4 @@
 ---
-## delete repos before cloning
-#- name: Delete odoo addons directory
-#  ansible.builtin.file:
-#    path: "{{env_path}}/{{ item.name }}"
-#    state: absent
-#  loop: "{{ odoo.addons_repo }}"
-#  when: odoo.delete_addons
-
 # clone github repository for addons-jumpto git@github.com:CompassionCH/addons-jumpto.git
 - name: Clone repository with submodules
   ansible.builtin.git:
@@ -16,7 +8,6 @@
     update: true
     version: "{{odoo.version}}.0"
     single_branch: "true"
-    depth: 1
     recursive: "true"
   loop: "{{ odoo.addons_repo }}"
   ignore_errors: yes
@@ -89,7 +80,19 @@
   loop_control:
     loop_var: odoo_instance
   loop: "{{ odoo_environment }}"
+  when: not odoo.development
 
+- name: Copy odoo.conf for development instance
+  vars:
+    admin_passwd: "12345678"
+  ansible.builtin.template:
+    src: "odoo.confd/dev.conf.j2"
+    owner: "{{ linux_user }}"
+    dest: "{{ env_path }}/etc/dev.conf"
+    mode: u=rwx,g=rwx
+    force: yes
+  become: yes
+  when: odoo.development
 
 - block:
     - name: Create odoo service production
