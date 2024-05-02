@@ -1,71 +1,74 @@
 ---
 # clone github repository for addons-jumpto git@github.com:CompassionCH/addons-jumpto.git
-- name: Clone repository with submodules
-  ansible.builtin.git:
-    repo: "{{ item.repo }}"
-    dest: "{{env_path}}/{{ item.name }}"
-    clone: true
-    update: true
-    version: "{{odoo.version}}.0"
-    single_branch: "true"
-    recursive: "true"
-  loop: "{{ odoo.addons_repo }}"
-  ignore_errors: yes
+- block:
 
-- name: Change group owner of the cloned directory
-  ansible.builtin.file:
-    path: "{{env_path}}/{{ item.name }}"
-    group: "{{ linux_user }}"
-    recurse: yes
-  loop: "{{ odoo.addons_repo }}"
-  become: true
+  - name: Clone repository with submodules
+    ansible.builtin.git:
+      repo: "{{ item.repo }}"
+      dest: "{{env_path}}/{{ item.name }}"
+      clone: true
+      update: true
+      version: "{{odoo.version}}.0"
+      single_branch: "true"
+      recursive: "true"
+    loop: "{{ odoo.addons_repo if odoo.addons_repo is iterable else [] }}"
+    ignore_errors: yes
 
-- name: Find Git repositories
-  find:
-    paths: "{{env_path}}/{{ item.name }}"
-    file_type: directory
-  register: git_repos
-  become: true
-  loop: "{{ odoo.addons_repo }}"
+  - name: Change group owner of the cloned directory
+    ansible.builtin.file:
+      path: "{{env_path}}/{{ item.name }}"
+      group: "{{ linux_user }}"
+      recurse: yes
+    loop: "{{ odoo.addons_repo if odoo.addons_repo is iterable else [] }}"
+    become: true
+
+  - name: Find Git repositories
+    find:
+      paths: "{{env_path}}/{{ item.name }}"
+      file_type: directory
+    register: git_repos
+    become: true
+    loop: "{{ odoo.addons_repo if odoo.addons_repo is iterable else [] }}"
+
+  - name: install linux package
+    ansible.builtin.apt:
+      name: "{{ item }}"
+      state: present
+    loop: "{{ odoo.apt_odoo_dependency if odoo.apt_odoo_dependency is iterable else [] }}"
+    become: true
+
+  - name: Check if each directory is a Git repository
+    stat:
+      path: "{{ item }}/.git"
+    loop: "{{ git_repo_list }}"
+    register: git_repo_stats
+    ignore_errors: yes
+    tags: pip
+
+  # Recursively install pip dependencies from requirements.txt
+  - name: Check if requirements.txt exists in each git repository
+    stat:
+      path: "{{ item }}/requirements.txt"
+    loop: "{{ git_repo_list }}"
+    become: true
+    register: requirement_file_stats
+    tags: pip
+
+  - name: Loop on each git repository and install pip dependencies if requirements.txt exists
+    ansible.builtin.pip:
+      requirements: "{{ item.stat.path }}"
+      virtualenv: "{{env_path}}/venv"
+      state: present
+    loop: "{{ requirement_file_stats.results }}"
+    become: yes
+    become_user: "{{ linux_user }}"
+    when: item.stat.exists
+
+  when: odoo.addons_repo is not false
 
 - name: Filter Git repositories
   set_fact:
     git_repo_list: "{{ git_repos.results | map(attribute='files') | flatten | map(attribute='path') | list if git_repos.results is defined else [] }}"
-
-- name: install linux package
-  ansible.builtin.apt:
-    name: "{{ item }}"
-    state: present
-  loop: "{{ odoo.apt_odoo_dependency }}"
-  become: true
-  when: odoo.apt_odoo_dependency is defined
-
-- name: Check if each directory is a Git repository
-  stat:
-    path: "{{ item }}/.git"
-  loop: "{{ git_repo_list }}"
-  register: git_repo_stats
-  ignore_errors: yes
-  tags: pip
-
-# Recursively install pip dependencies from requirements.txt
-- name: Check if requirements.txt exists in each git repository
-  stat:
-    path: "{{ item }}/requirements.txt"
-  loop: "{{ git_repo_list }}"
-  become: true
-  register: requirement_file_stats
-  tags: pip
-
-- name: Loop on each git repository and install pip dependencies if requirements.txt exists
-  ansible.builtin.pip:
-    requirements: "{{ item.stat.path }}"
-    virtualenv: "{{env_path}}/venv"
-    state: present
-  loop: "{{ requirement_file_stats.results }}"
-  become: yes
-  become_user: "{{ linux_user }}"
-  when: item.stat.exists
 
 - name: Copy odoo.conf for production instance
   vars:

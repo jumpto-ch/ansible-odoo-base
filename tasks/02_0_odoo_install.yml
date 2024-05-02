@@ -150,7 +150,7 @@
       - "{{ item }}"
     virtualenv: "{{env_path}}/venv"
     virtualenv_python: python{{odoo_python_mapping[odoo.version]}}
-  loop: "{{ odoo.pip_pre_dependencies }}"
+  loop: "{{ odoo.pip_pre_dependencies if odoo.pip_pre_dependencies is iterable else [] }}"
   become: True
   become_user: "{{ linux_user }}"
 
