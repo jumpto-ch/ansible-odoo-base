@@ -1,0 +1,26 @@
+---
+- name: (Debian/Ubuntu) Add NGINX signing key
+  ansible.builtin.apt_key:
+    id: 573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62
+    keyring: /usr/share/keyrings/nginx-archive-keyring.gpg
+    url: https://nginx.org/keys/nginx_signing.key
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: (Debian/Ubuntu) NGINX repository
+  ansible.builtin.apt_repository:
+    filename: nginx
+    repo: "{{ item }}"
+    update_cache: true
+    mode: "0644"
+  ignore_errors: true
+  with_items: 
+    - deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] https://nginx.org/packages/mainline/{{ ansible_facts['distribution'] | lower }}/ {{ ansible_facts['distribution_release'] }} nginx
+    - deb-src [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] https://nginx.org/packages/mainline/{{ ansible_facts['distribution'] | lower }}/ {{ ansible_facts['distribution_release'] }} nginx
+
+- name: (Debian/Ubuntu) NGINX
+  ansible.builtin.apt:
+    name: nginx{{ nginx_version | default('') }}
+    state: present
+    update_cache: true
+  become: true
+  notify: (Handler) Run NGINX

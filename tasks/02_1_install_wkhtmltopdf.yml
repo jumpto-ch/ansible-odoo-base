@@ -12,7 +12,7 @@
         {% if odoo.version is version('15.0', '>') %}
           https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_amd64.deb          
         {% else %}
-          https://github.com/wkhtmltopdf/packaging/files/8632951/wkhtmltox_0.12.5-1.jammy_amd64.zip
+          https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
         {% endif %}
       {% else %}
         https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb
@@ -22,12 +22,6 @@
   get_url:
     url: "{{wkhtmltopdf_url}}"
     dest: /tmp/wkhtmltox.deb
-
-- name: Unzip wkhtmltopdf .zip file
-  ansible.builtin.unarchive:
-    src: /tmp/wkhtmltox
-    dest: /tmp/wkhtmltox.deb
-  when: wkhtmltopdf_url.endswith('.zip')
 
 - name: Install wkhtmltox
   apt:

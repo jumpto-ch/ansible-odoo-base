@@ -8,3 +8,13 @@
 #postgres_user_password: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile length=16 chars=ascii_letters,digits,!@#$%^&*()_+') }}"
 #postgres_address: false
 postgres_hostname: false
+default_odoo_ports:
+  production:
+    odoo_port: 69
+    longpolling_port: 72
+  stage:
+    odoo_port: 70
+    longpolling_port: 71
+  manager:
+    odoo_port: 68
+    longpolling_port: 73
