@@ -1,0 +1,22 @@
+---
+- name: Populate service facts
+  service_facts:
+
+- name: Stop apache2 webserver (if running)
+  service:
+    name: apache2
+    state: stopped
+  when: "'apache2' in services"
+
+- name: 'Install dependencies'
+  apt:
+    name:
+    - "gpg"
+    - "gnupg2"
+    state: present
+
+- name: Execute nginx.yml
+  include_tasks: nginx-install.yml
+
+- name: Execute nginx-config.yml
+  include_tasks: nginx-config.yml

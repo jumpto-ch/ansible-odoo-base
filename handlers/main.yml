@@ -15,3 +15,20 @@
     name: "odoo{{odoo_version}}"
     state: restarted
   become: yes
+
+# handlers for nginx
+- name: (Handler) Run NGINX
+  service:
+    name: nginx
+    state: restarted
+
+- name: (Handler) Reload NGINX
+  ansible.builtin.service:
+    name: nginx
+    state: Reload
+
+- name: (Handler) Manage NGINX  # TODO check with stephane
+  service:
+    name: nginx
+    state: reloaded
+   # TODO check -> fatal: [cs-nuc-04]: FAILED! => {"changed": false, "msg": "Unable to reload service nginx: Failed to reload nginx.service: Connection timed out\nSee system logs and 'systemctl status nginx.service' for details.\n"}

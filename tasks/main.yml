@@ -1,4 +1,4 @@
----
+#---
 - name: Install python version
   include_tasks : 00_0_check_python.yml
   loop: "{{ list_odoo_instance }}"
@@ -26,3 +26,10 @@
   loop_control:
     loop_var: odoo
   when: inventory_hostname in groups['odoo']
+
+- name: configure nginx
+  include_tasks: nginx/main.yml
+  loop: "{{ list_odoo_instance }}"
+  loop_control:
+    loop_var: odoo
+  when: inventory_hostname in groups['nginx']

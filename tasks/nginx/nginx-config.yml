@@ -1,0 +1,87 @@
+---
+
+- name: Remove default nginx config
+  file:
+    name: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Check for NGINX folders
+  stat:
+   path: "{{item}}"
+  register: folder_stats
+  with_items:
+  - ["/etc/nginx/sites-enabled/","/etc/nginx/sites-available/"]
+
+- name: Create NGINX folders if not exists
+  file:
+   path: "{{item.item}}"
+   state: directory
+   mode: 0644
+   group: root
+   owner: root
+  when: item.stat.exists == false
+  with_items:
+  - "{{folder_stats.results}}"
+
+- name: Add Site Config to sites-available/
+  template:
+    src: nginx/reverseproxy.conf.j2
+    dest: /etc/nginx/sites-available/{{ site.domain }}.conf
+    owner: root
+    group: root
+  loop: "{{ odoo.nginx_configurations.sites }}"
+  loop_control:
+    loop_var: site
+  become: true
+  notify: (Handler) Manage NGINX
+
+- name: Create link to site config in sites-enabled/
+  file:
+    src: /etc/nginx/sites-available/{{ site.domain }}.conf
+    dest: /etc/nginx/sites-enabled/{{ site.domain }}.conf
+    state: link
+  loop: "{{ odoo.nginx_configurations.sites }}"
+  loop_control:
+    loop_var: site
+  become: true
+  notify: (Handler) Manage NGINX
+
+- name: Check if site folder exists (/var/www/...)
+  stat:
+   path: "/var/www/{{ item.key }}"
+  register: folder_stats_site
+  with_dict: "{{ odoo.nginx_configurations }}"
+
+- name: Create site folder if it not exists (/var/www/...)
+  file:
+   path:  "/var/www/{{item.item.key}}"
+   state: directory
+   mode: 0755
+   group: www-data
+   owner: www-data
+  when: item.stat.exists == false
+  become: true
+  with_items:
+  - "{{ folder_stats_site.results }}"
+
+- name: Install prerequisite for htpasswd
+  ansible.builtin.apt:
+    name:
+      - apache2-utils
+      - python3-passlib
+    state: present
+    update_cache: true
+  become: true
+
+- name: htpasswd credentials configuration.
+  htpasswd:
+    path: "/etc/nginx/passwd"
+    name: "{{ odoo.nginx_configurations.htpasswd.user }}"
+    password: "{{ odoo.nginx_configurations.htpasswd.password }}"
+    owner: root
+    group: root
+    mode: "u+rw,g+r"
+  become: true
+  notify: (Handler) Manage NGINX
+
+
